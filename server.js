@@ -64,6 +64,53 @@ app.post('/add-entry', (req, res) => {
         });
 });
 
+
+app.put('/edit-entry', (req, res) => {
+    const { dateTime, updatedEntry } = req.body;
+    const entries = [];
+    fs.createReadStream(CSV_FILE_PATH)
+      .pipe(csvParser())
+      .on('data', (data) => {
+        entries.push(data);
+      })
+      .on('end', () => {
+        const entryIndex = entries.findIndex(entry => entry.dateTime === dateTime);
+        if (entryIndex !== -1) {
+          entries[entryIndex] = { ...entries[entryIndex], ...updatedEntry };
+  
+          fastCsv.writeToPath(CSV_FILE_PATH, entries, { headers: true })
+            .on('finish', () => {
+              res.status(200).json({ message: 'Entry edited successfully' });
+            });
+        } else {
+          res.status(404).json({ message: 'Entry not found' });
+        }
+      });
+  });
+
+app.delete('/delete-entry', (req, res) => {
+    const { dateTime } = req.body;
+
+    if (!dateTime) {
+        return res.status(400).json({ error: 'dateTime field is required' });
+    }
+
+    const entries = [];
+    fs.createReadStream(CSV_FILE_PATH)
+        .pipe(csvParser())
+        .on('data', (data) => {
+            if (data.dateTime !== dateTime) {
+                entries.push(data);
+            }
+        })
+        .on('end', () => {
+            fastCsv.writeToPath(CSV_FILE_PATH, entries, { headers: true })
+                .on('finish', () => {
+                    res.status(200).json({ message: 'Entry deleted successfully' });
+                });
+        });
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
